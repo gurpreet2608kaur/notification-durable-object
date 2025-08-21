@@ -2,11 +2,14 @@
  * For more details on how to configure Wrangler, refer to:
  * https://developers.cloudflare.com/workers/wrangler/configuration/
  */
+
+ // wrangler.jsonc
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
 	"name": "notification-durable-object",
-	"main": "src/index.js",
+	"main": "src/worker.js",
 	"compatibility_date": "2025-08-20",
+	"account_id": "5c509e040ec68c6ca453ea5895ca6f57",
 	"migrations": [
 		{
 			"new_sqlite_classes": [
@@ -19,7 +22,7 @@
 		"bindings": [
 			{
 				"class_name": "MyDurableObject",
-				"name": "MY_DURABLE_OBJECT"
+				"name": "NOTIFICATION"
 			}
 		]
 	},
