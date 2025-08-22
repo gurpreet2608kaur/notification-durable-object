@@ -26,6 +26,14 @@
 			}
 		]
 	},
+	"queues": {
+		"producers": [
+			{
+				"binding": "QUEUE",
+				"queue": "scheduled-notification-queue"
+			}
+		]
+	},
 	"observability": {
 		"enabled": true
 	}
