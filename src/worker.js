@@ -17,6 +17,12 @@ export class MyDurableObject extends DurableObject {
       return (await this.ctx.storage.get('notifications')) || [];
     }
 
+    const scheduleTs = new Date(data.content.schedule_time).getTime();
+    if (scheduleTs <= Date.now()) {
+      console.error("❌ Rejecting notification with past/now schedule:", data);
+      return (await this.ctx.storage.get('notifications')) || [];
+    }
+
     let notifications = (await this.ctx.storage.get('notifications')) || [];
     console.log("📂 Current notifications in storage:", notifications);
 
@@ -27,7 +33,7 @@ export class MyDurableObject extends DurableObject {
     );
 
     if (!exists) {
-      console.log("✅ New notification, storing:", data);
+      console.log("✅ New valid future notification, storing:", data);
       notifications.push(data);
       await this.ctx.storage.put('notifications', notifications);
       console.log("💾 Notifications updated in storage:", notifications);
@@ -38,6 +44,7 @@ export class MyDurableObject extends DurableObject {
 
     return notifications;
   }
+
 
   async getNotifications() {
     console.log("📤 Fetching notifications from storage");
@@ -74,24 +81,31 @@ export class MyDurableObject extends DurableObject {
 
     const now = Date.now();
 
-    const due = notifications.filter(
-      (n) => n.content?.schedule_time && new Date(n.content.schedule_time).getTime() <= now
-    );
-    const upcoming = notifications.filter(
+    // Only keep future notifications
+    const future = notifications.filter(
       (n) => n.content?.schedule_time && new Date(n.content.schedule_time).getTime() > now
     );
 
-    console.log(`⏳ Due: ${due.length}, 📅 Upcoming: ${upcoming.length}`);
+    // Candidates to enqueue: those that were scheduled for future
+    const toEnqueue = notifications.filter((n) => {
+      if (!n.content?.schedule_time) return false;
+      const ts = new Date(n.content.schedule_time).getTime();
+      return ts > now; // ✅ strictly future
+    });
 
-    for (const n of due) {
+    console.log(`🚀 Eligible future notifications: ${toEnqueue.length}`);
+
+    for (const n of toEnqueue) {
       await enqueueToQueue(this.env, n);
       console.log("🚀 Enqueued scheduled notification:", n);
     }
 
-    await this.ctx.storage.put("notifications", upcoming);
-    console.log("💾 Storage updated with upcoming notifications:", upcoming);
+    // Save only remaining future notifications
+    await this.ctx.storage.put("notifications", future);
+    console.log("💾 Storage updated with remaining future notifications:", future);
 
-    await this.scheduleNextAlarm(upcoming);
+    // Reschedule next alarm
+    await this.scheduleNextAlarm(future);
   }
 
   async fetch(request) {
